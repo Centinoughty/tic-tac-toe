@@ -52,7 +52,7 @@ module.exports.loginUser = async (req, res) => {
     }
 
     // If password is incorrect
-    if (!(await User.isMatchPassword(password))) {
+    if (!(await user.isMatchPassword(password))) {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
