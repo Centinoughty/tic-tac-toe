@@ -1,4 +1,6 @@
+const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const JWT_TOKEN = process.env.JWT_TOKEN;
 
 module.exports.registerUser = async (req, res) => {
   try {
@@ -28,6 +30,38 @@ module.exports.registerUser = async (req, res) => {
     res.status(201).json({ message: "Account created" });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
-    console.log(error)
+    console.log(error);
+  }
+};
+
+module.exports.loginUser = async (req, res) => {
+  try {
+    const { loginId, password } = req.body;
+
+    // TODO
+    // 1. Add validation to both loginId and password
+
+    // Either username or email
+    const user = await User.findOne({
+      $or: [{ username: loginId }, { email: loginId }],
+    });
+
+    // If user does not exist
+    if (!user) {
+      return res.status(404).json({ message: "Cannot find user" });
+    }
+
+    // If password is incorrect
+    if (!(await User.isMatchPassword(password))) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
+
+    // Build a token
+    const token = jwt.sign({ _id: user._id }, JWT_TOKEN);
+
+    res.status(200).json({ message: "User logged in", token });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+    console.log(error);
   }
 };
