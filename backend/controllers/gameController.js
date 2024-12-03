@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const Match = require("../models/matchModel");
 const { v4: uuidv4 } = require("uuid");
+const { checkWin, isBoardFull } = require("../util/gameUtil");
 
 let waitingList = [];
 
@@ -134,5 +135,118 @@ module.exports.joinGame = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
     console.log(error);
+  }
+};
+
+module.exports.makeTurn = async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const userId = req.user._id;
+    const { position } = req.body;
+
+    // TODO
+    // 1. Validate input
+
+    // Check for game
+    const game = await Match.findOne({ gameId });
+    if (!game) {
+      return res.status(404).json({ message: "Cannot find the game" });
+    }
+
+    // Check if player part of game
+    if (
+      !(
+        game.players.player1.id.equals(userId) ||
+        game.players.player2.id.equals(userId)
+      )
+    ) {
+      return res.status(404).json({ message: "User not part of the game" });
+    }
+
+    // Check game status
+    if (game.status !== "active") {
+      return res.status(400).json({ message: "Game is not active" });
+    }
+
+    // Check if it is users turn
+    if (!game.turn.equals(userId)) {
+      return res.status(403).json({ message: "Wait. not yout turn" });
+    }
+
+    // Check if position is empty
+    if (game.board[position] !== "") {
+      return res.status(400).json({ message: "Position already occupied" });
+    }
+
+    // Find the player role
+    const playerRole = game.players.player1.id.equals(userId)
+      ? game.players.player1.role
+      : game.players.player2.role;
+
+    // Update board
+    game.board[position] = playerRole;
+
+    if (checkWin(game.board, playerRole)) {
+      // If a player wins the game
+      game.status = "completed";
+      game.winner = { id: userId, role: playerRole };
+
+      // Update the stats for players
+      const winner = await User.findById(userId);
+      const loserId = game.players.player1.id.equals(userId)
+        ? game.players.player2.id
+        : game.players.player1.id;
+      const loser = await User.findById(loserId);
+
+      if (winner) {
+        winner.matchDelta.noOfMatches++;
+        winner.matchDelta.noOfWins++;
+        await winner.save();
+      }
+
+      if (loser) {
+        loser.matchDelta.noOfMatches++;
+        loser.matchDelta.noOfLoses++;
+        await loser.save();
+      }
+    } else if (isBoardFull(game.board)) {
+      // If the game ends in draw
+      game.status = "completed";
+      game.isDraw = true;
+
+      // Update the stats for players
+      const player1 = await User.findById(game.players.player1.id);
+      const player2 = await User.findById(game.players.player2.id);
+
+      if (player1) {
+        player1.matchDelta.noOfMatches++;
+        player1.matchDelta.noOfDraw++;
+        await player1.save();
+      }
+
+      if (player2) {
+        player2.matchDelta.noOfMatches++;
+        player2.matchDelta.noOfDraw++;
+        await player2.save();
+      }
+    } else {
+      // Switch the turn
+      game.turn = game.players.player1.id.equals(userId)
+        ? game.players.player2.id
+        : game.players.player1.id;
+    }
+
+    await game.save();
+
+    res.status(200).json({
+      message: "Move succesful",
+      board: game.board,
+      status: game.status,
+      winner: game.winner,
+      isDraw: game.isDraw,
+      turn: game.turn,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
