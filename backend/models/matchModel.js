@@ -8,6 +8,10 @@ const MatchSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    isPrivate: {
+      type: Boolean,
+      default: false,
+    },
     players: {
       player1: {
         id: {
@@ -21,7 +25,7 @@ const MatchSchema = new mongoose.Schema(
           required: false,
         },
       },
-      player1: {
+      player2: {
         id: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "users",

@@ -4,6 +4,7 @@ const { connectDb } = require("./config/db");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
+const gameRoutes = require("./routes/game");
 
 // Initialization
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/game", gameRoutes);
 
 connectDb();
 app.listen(PORT, () => {
