@@ -65,3 +65,20 @@ module.exports.loginUser = async (req, res) => {
     console.log(error);
   }
 };
+
+module.exports.getUser = async (req, res) => {
+  const { username } = req.params;
+
+  // TODO
+  // 1. Display protected contents
+
+  const user = await User.findOne({ username });
+  if (!user) {
+    return res.status(400).json({ message: "Cannot find user" });
+  }
+
+  return res.status(200).json({
+    message: "User fetched succesfully",
+    user: { username, avatar: user.avatar, matchDelta: user.matchDelta },
+  });
+};
