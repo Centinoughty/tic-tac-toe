@@ -81,7 +81,7 @@ module.exports.joinGame = async (req, res) => {
       }
 
       // If match started
-      if (match.players.player2) {
+      if (match.status === "active") {
         return res.status(400).json({ message: "Game started" });
       }
 
@@ -89,7 +89,7 @@ module.exports.joinGame = async (req, res) => {
       const [player1Role, player2Role] =
         Math.random() < 0.5 ? ["X", "O"] : ["O", "X"];
 
-      match.players.player1 = { role: player1Role };
+      match.players.player1.role = player1Role;
       match.players.player2 = { id: userId, role: player2Role };
       match.turn = player1Role === "X" ? match.players.player1.id : userId;
       match.status = "active";
@@ -199,12 +199,14 @@ module.exports.makeTurn = async (req, res) => {
       const loser = await User.findById(loserId);
 
       if (winner) {
+        winner.matches.push(game._id);
         winner.matchDelta.noOfMatches++;
         winner.matchDelta.noOfWins++;
         await winner.save();
       }
 
       if (loser) {
+        loser.matches.push(game._id);
         loser.matchDelta.noOfMatches++;
         loser.matchDelta.noOfLoses++;
         await loser.save();
@@ -219,12 +221,14 @@ module.exports.makeTurn = async (req, res) => {
       const player2 = await User.findById(game.players.player2.id);
 
       if (player1) {
+        player1.matches.push(game._id);
         player1.matchDelta.noOfMatches++;
         player1.matchDelta.noOfDraw++;
         await player1.save();
       }
 
       if (player2) {
+        player2.matches.push(game._id);
         player2.matchDelta.noOfMatches++;
         player2.matchDelta.noOfDraw++;
         await player2.save();
@@ -248,5 +252,6 @@ module.exports.makeTurn = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
+    console.log(error)
   }
 };
