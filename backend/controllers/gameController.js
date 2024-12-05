@@ -1,3 +1,13 @@
+// Check the fuckin SOCKET.io
+
+//  /\   /\
+//  \/   \/
+//     .
+//   // \\
+//    ===
+
+const io = require("../app");
+
 const User = require("../models/userModel");
 const Match = require("../models/matchModel");
 const { v4: uuidv4 } = require("uuid");
@@ -52,6 +62,9 @@ module.exports.createGame = async (req, res) => {
 
         await newMatch.save();
 
+        io.to(player1Id.toString()).emit("game-start", { gameId });
+        io.to(player2Id.toString()).emit("game-start", { gameId });
+
         return res.status(201).json({ message: "Created a game", gameId });
       }
 
@@ -95,6 +108,13 @@ module.exports.joinGame = async (req, res) => {
       match.status = "active";
       await match.save();
 
+      io.to(match.gameId).emit("game-update", {
+        message: "Game Started",
+        board: game.board,
+        turn: game.turn,
+        status: game.status,
+      });
+
       return res
         .status(200)
         .json({ message: "Joined match succesfully", gameId });
@@ -124,6 +144,9 @@ module.exports.joinGame = async (req, res) => {
         });
 
         await newMatch.save();
+
+        io.to(player1Id.toString()).emit("game-start", { gameId });
+        io.to(player2Id.toString()).emit("game-start", { gameId });
 
         return res
           .status(201)
@@ -211,6 +234,13 @@ module.exports.makeTurn = async (req, res) => {
         loser.matchDelta.noOfLoses++;
         await loser.save();
       }
+
+      io.to(gameId).emit("game-update", {
+        message: "Player won",
+        board: game.board,
+        winner: game.winner,
+        status: game.status,
+      });
     } else if (isBoardFull(game.board)) {
       // If the game ends in draw
       game.status = "completed";
@@ -233,11 +263,25 @@ module.exports.makeTurn = async (req, res) => {
         player2.matchDelta.noOfDraw++;
         await player2.save();
       }
+
+      io.to(gameId).emit("game-update", {
+        message: "Game ended in a draw",
+        board: game.board,
+        isDraw: true,
+        status: game.status,
+      });
     } else {
       // Switch the turn
       game.turn = game.players.player1.id.equals(userId)
         ? game.players.player2.id
         : game.players.player1.id;
+
+      io.to(gameId).emit("game-update", {
+        message: "Move made",
+        board: game.board,
+        turn: game.turn,
+        status: game.status,
+      });
     }
 
     await game.save();
@@ -252,6 +296,6 @@ module.exports.makeTurn = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
-    console.log(error)
+    console.log(error);
   }
 };
